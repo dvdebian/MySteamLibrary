@@ -1,22 +1,21 @@
 ﻿# Steam Game Collection Manager
 
-A high-performance **WPF (C#)** desktop application designed to visualize your Steam library with a cinematic flair. It provides a fluid, interactive experience for browsing thousands of games using local caching and optimized search algorithms.
-
+A Windows application to browse and search your Steam game collection.
 
 
 ## 🚀 Key Features
 
 * **Steam API Integration**: Connects directly to Steam Web Services to fetch your owned games, playtimes, and metadata.
-* **Dual-View Architecture**:
-    * **Grid Mode**: Optimized for high-density browsing and quick selection.
-    * **Cover Mode**: A horizontal "Cover Flow" experience featuring smooth, eased animations and auto-centering.
-* **Performance Optimization**: 
-    * **Asynchronous Loading**: Images and data are fetched on background threads to keep the UI at 60 FPS.
-    * **Debounced Search**: Uses a timer-based search to prevent UI stutters while typing.
+* **Multi-View Architecture**:
+    * **List Mode**: A vertical list that shows a description when a game is selected.
+    * **Grid Mode**: For high-density browsing.
+    * **Cover Mode**: A horizontal "Cover Flow" experience.
+* **Real-time Search:** Filter your library instantly as you type.
 * **Advanced Caching System**: 
     * Reduces API overhead by storing game metadata in `games_cache.json`.
     * Downloads and persists artwork locally in `/ImageCache` to enable instant subsequent loads.
 * **Dynamic Image Fallback**: Automatically cascades through Library Art, Header Images, and Icons if specific assets are missing on Steam's servers.
+* * **Privacy Focused:** Your Steam ID and API Key are stored locally on your machine.
 
 ---
 
@@ -35,6 +34,28 @@ A high-performance **WPF (C#)** desktop application designed to visualize your S
 4. Restore NuGet packages and build the solution (**Ctrl+Shift+B**).
 5. Run the application (**F5**).
 6. Navigate to **Settings** (gear icon) and input your credentials.
+
+---
+
+## 🚀 Getting Started
+
+To use this application, you will need a **Steam Web API Key**. This allows the app to securely fetch your game list and artwork.
+
+### 1. Get your API Key
+1.  Go to the [Steam Community API Key page](https://steamcommunity.com/dev/apikey).
+2.  Log in with your Steam account.
+3.  Register a domain name (you can just put `localhost`).
+4.  Copy your **Key**.
+
+### 2. Find your SteamID64
+1.  Go to your Steam Profile.
+2.  Right-click anywhere and select **Copy Page URL**.
+3.  Use a site like [SteamID.io](https://steamid.io/) to get your **SteamID64** (it's the long number).
+
+### 3. Run the App
+1.  Download the latest [Release](https://github.com/YOUR_USERNAME/MySteamLibrary/releases).
+2.  Launch `My Steam Library.exe`.
+3.  Enter your **API Key** and **SteamID64** into the setup prompts.
 
 ---
 
