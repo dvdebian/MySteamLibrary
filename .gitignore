@@ -1,0 +1,28 @@
+## .NET / Visual Studio
+[Bb]in/
+[Oo]bj/
+*.user
+*.userosscache
+*.sln.docstates
+
+## Visual Studio Cache & Build Folders
+.vs/
+.cache/
+x64/
+x86/
+
+## User-Specific Settings
+# Prevents your private Steam API Key/ID from being shared
+Properties/Settings.settings
+Properties/Settings.Designer.cs
+
+## Application Data & Cache
+# This ignores the local JSON database and the downloaded covers
+games_cache.json
+ImageCache/
+
+## Operating System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
