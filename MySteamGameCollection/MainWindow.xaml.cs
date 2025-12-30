@@ -16,7 +16,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 
-namespace MySteamGameCollection
+namespace MySteamLibrary
 {
     // Class representing a single Steam game and its properties
     public class SteamGame : INotifyPropertyChanged

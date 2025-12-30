@@ -6,7 +6,14 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>MySteamLibrary.ico</ApplicationIcon>
+    <AssemblyName>My Steam Library</AssemblyName>
+    <RootNamespace>MySteamLibrary</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="MySteamLibrary.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <Compile Update="Properties\Settings.Designer.cs">
@@ -20,6 +27,9 @@
     <None Update="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <None Update="README.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 

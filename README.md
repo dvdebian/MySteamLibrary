@@ -1,4 +1,4 @@
-﻿# Steam Game Collection Manager
+﻿# My Steam Library
 
 A high-performance **WPF (C#)** desktop application designed to visualize your Steam library with a cinematic flair. It provides a fluid, interactive experience for browsing thousands of games using local caching and optimized search algorithms.
 
