@@ -334,10 +334,19 @@ namespace MySteamLibrary
                             int id = el.GetProperty("appid").GetInt32();
                             if (Games.Any(g => g.AppId == id)) continue;
 
+                            // 1. Get raw minutes from Steam
+                            int minutes = el.TryGetProperty("playtime_forever", out var pt) ? pt.GetInt32() : 0;
+
+                            // 2. Convert to your display string immediately
+                            string playtimeString = minutes == 0
+                                ? "Not played"
+                                : $"{Math.Round(minutes / 60.0, 1)} hours";
+
                             var newGame = new SteamGame
                             {
                                 AppId = id,
                                 Name = el.GetProperty("name").GetString(),
+                                Playtime = playtimeString, // Save the pre-formatted string
                                 ImageUrl = $"https://cdn.cloudflare.steamstatic.com/steam/apps/{id}/library_600x900.jpg",
                                 DisplayImage = null
                             };
