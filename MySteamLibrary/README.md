@@ -1,6 +1,7 @@
-﻿# Steam Game Collection Manager
+﻿# My Steam Library
 
 A Windows application to browse and search your Steam game collection.
+No installation needed.
 
 
 ## 🚀 Key Features
@@ -19,21 +20,13 @@ A Windows application to browse and search your Steam game collection.
 
 ---
 
-## 🛠️ Setup & Requirements
+## 🛠️ Requirements
 
 ### Prerequisites
 * **.NET 6.0 SDK** or higher.
-* **Visual Studio 2022** (recommended).
 * **Steam API Key**: Generate your key at [Steam Community Dev](https://steamcommunity.com/dev/apikey).
 * **SteamID64**: Your unique 17-digit numeric identifier.
-
-### Installation
-1. Clone the repository to your local machine.
-2. Open the `.sln` file in Visual Studio.
-3. Place your `.gitignore` in the root folder.
-4. Restore NuGet packages and build the solution (**Ctrl+Shift+B**).
-5. Run the application (**F5**).
-6. Navigate to **Settings** (gear icon) and input your credentials.
+* **Visual Studio 2022** (only for developers).
 
 ---
 
