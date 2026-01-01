@@ -1,4 +1,7 @@
-﻿using System;
+﻿using MySteamLibrary.Helpers;
+using MySteamLibrary.Models;
+using MySteamLibrary.Services;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -15,7 +18,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
-using MySteamLibrary.Models;
+
 
 namespace MySteamLibrary
 {
@@ -25,7 +28,8 @@ namespace MySteamLibrary
     public partial class MainWindow : Window
     {
         // --- Variables & State ---
-
+        private readonly ImageService _imageService = new ImageService();
+        private readonly SteamService _steamService = new SteamService();
         // The collection of games bound to the UI
         public ObservableCollection<SteamGame> Games { get; set; } = new ObservableCollection<SteamGame>();
 
@@ -77,7 +81,7 @@ namespace MySteamLibrary
         // --- UI Event Handlers (Selection & Scrolling) ---
 
         // Called when the user selects a game; centers the item and fetches its description
-        private void GamesListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void GamesListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             var selectedGame = GamesListView.SelectedItem as SteamGame;
             if (selectedGame == null) return;
@@ -91,18 +95,19 @@ namespace MySteamLibrary
 
             if (string.IsNullOrEmpty(selectedGame.Description))
             {
-                _ = FetchGameDescription(selectedGame);
+                // CALL THE SERVICE for the description
+                selectedGame.Description = await _steamService.FetchGameDescriptionAsync(selectedGame.AppId);
             }
         }
 
         // Logic to smoothly animate the selected game into the horizontal center of the screen
         private void CenterSelectedItem()
         {
-            var scrollViewer = GetScrollViewer(GamesListView);
+            var scrollViewer = UIHelper.GetScrollViewer(GamesListView);
             var item = GamesListView.SelectedItem;
             if (scrollViewer == null || item == null) return;
 
-            var itemsPresenter = FindVisualChild<ItemsPresenter>(GamesListView);
+            var itemsPresenter = UIHelper.FindVisualChild<ItemsPresenter>(GamesListView);
             var stackPanel = VisualTreeHelper.GetChild(itemsPresenter, 0) as StackPanel;
 
             var container = GamesListView.ItemContainerGenerator.ContainerFromItem(item) as FrameworkElement;
@@ -224,37 +229,26 @@ namespace MySteamLibrary
         {
             try
             {
-                string cacheFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ImageCache");
-                if (!Directory.Exists(cacheFolder)) Directory.CreateDirectory(cacheFolder);
+                string localPath = _imageService.GetLocalImagePath(game.AppId);
 
-                string localPath = Path.Combine(cacheFolder, $"{game.AppId}.jpg");
+                if (!_imageService.DoesImageExistLocally(game.AppId))
+                {
+                    await _imageService.DownloadAndSaveImageAsync(game.AppId, game.ImageUrl);
+                }
 
-                if (File.Exists(localPath))
-                {
-                    BitmapImage bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.UriSource = new Uri(localPath);
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmap.EndInit();
-                    bitmap.Freeze();
-                    game.DisplayImage = bitmap;
-                }
-                else
-                {
-                    using (HttpClient client = new HttpClient())
-                    {
-                        byte[] data = await client.GetByteArrayAsync(game.ImageUrl);
-                        await File.WriteAllBytesAsync(localPath, data);
-                    }
-                    BitmapImage bitmap = new BitmapImage(new Uri(localPath));
-                    bitmap.Freeze();
-                    game.DisplayImage = bitmap;
-                }
+                // WPF UI Logic stays here
+                BitmapImage bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = new Uri(localPath);
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.EndInit();
+                bitmap.Freeze();
+                game.DisplayImage = bitmap;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Cache error for {game.Name}: {ex.Message}");
-                game.DisplayImage = game.ImageUrl;
+                System.Diagnostics.Debug.WriteLine($"UI Load error for {game.Name}: {ex.Message}");
+                game.DisplayImage = game.ImageUrl; // Fallback to URL
             }
         }
 
@@ -270,50 +264,39 @@ namespace MySteamLibrary
                 return;
             }
 
-            string url = $"https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key={apiKey}&steamid={steamId}&include_appinfo=true&format=json";
-
             try
             {
-                using (HttpClient client = new HttpClient())
+                // 1. CALL THE SERVICE to fetch from web
+                var fetchedGames = await _steamService.GetGamesFromApiAsync(apiKey, steamId);
+
+                bool newGamesAdded = false;
+                foreach (var game in fetchedGames)
                 {
-                    string response = await client.GetStringAsync(url);
-                    using (JsonDocument doc = JsonDocument.Parse(response))
+                    if (!Games.Any(g => g.AppId == game.AppId))
                     {
-                        if (!doc.RootElement.TryGetProperty("response", out JsonElement resp) ||
-                            !resp.TryGetProperty("games", out JsonElement gamesArray)) return;
-
-                        foreach (var el in gamesArray.EnumerateArray())
-                        {
-                            int id = el.GetProperty("appid").GetInt32();
-                            if (Games.Any(g => g.AppId == id)) continue;
-
-                            // 1. Get raw minutes from Steam
-                            int minutes = el.TryGetProperty("playtime_forever", out var pt) ? pt.GetInt32() : 0;
-
-                            // 2. Convert to your display string immediately
-                            string playtimeString = minutes == 0
-                                ? "Not played"
-                                : $"{Math.Round(minutes / 60.0, 1)} hours";
-
-                            var newGame = new SteamGame
-                            {
-                                AppId = id,
-                                Name = el.GetProperty("name").GetString(),
-                                Playtime = playtimeString, // Save the pre-formatted string
-                                ImageUrl = $"https://cdn.cloudflare.steamstatic.com/steam/apps/{id}/library_600x900.jpg",
-                                DisplayImage = null
-                            };
-                            Games.Add(newGame);
-                            _ = LoadImageWithCache(newGame);
-                        }
+                        Games.Add(game);
+                        // Keep image loading in MainWindow for now as it uses WPF Bitmaps
+                        _ = LoadImageWithCache(game);
+                        newGamesAdded = true;
                     }
                 }
-                SaveGamesToDisk();
+
+                // 2. CALL THE SERVICE to save to disk (Replaces SaveGamesToDisk())
+                if (newGamesAdded)
+                {
+                    _steamService.SaveGamesToDisk(Games);
+                }
+
+                // 3. UI Updates stay in MainWindow
                 InitializeSearchCache();
                 RefreshCount();
             }
-            catch (Exception ex) { MessageBox.Show(ex.Message); }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
+
 
         // Fetches game descriptions from the Steam Store API
         private async Task FetchGameDescription(SteamGame game)
@@ -372,17 +355,8 @@ namespace MySteamLibrary
 
             if (result == MessageBoxResult.Yes)
             {
-                string cacheFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ImageCache");
-                if (Directory.Exists(cacheFolder))
-                {
-                    int deletedCount = 0;
-                    string[] files = Directory.GetFiles(cacheFolder, "*.jpg");
-                    foreach (string file in files)
-                    {
-                        try { File.Delete(file); deletedCount++; } catch { }
-                    }
-                    MessageBox.Show($"Cache cleared! Deleted {deletedCount} images.", "Success");
-                }
+                int deleted = _imageService.ClearAllCachedImages();
+                MessageBox.Show($"Cache cleared! Deleted {deleted} images.", "Success");
             }
         }
 
@@ -392,7 +366,7 @@ namespace MySteamLibrary
         private static void OnScrollHelperChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var window = d as MainWindow;
-            var viewer = window?.GetScrollViewer(window.GamesListView);
+            var viewer = UIHelper.GetScrollViewer(window.GamesListView);
             if (viewer != null) viewer.ScrollToHorizontalOffset((double)e.NewValue);
         }
 
@@ -457,7 +431,7 @@ namespace MySteamLibrary
             GamesListView.SelectedIndex = -1;
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
             {
-                var scrollViewer = GetScrollViewer(GamesListView);
+                var scrollViewer = UIHelper.GetScrollViewer(GamesListView);
                 if (scrollViewer != null)
                 {
                     if (CoverModeBtn.IsChecked == true) { GamesListView.SelectedIndex = 0; CenterSelectedItem(); }
@@ -472,7 +446,7 @@ namespace MySteamLibrary
             e.Handled = true;
             if (CoverModeBtn.IsChecked == true && e.TargetObject is FrameworkElement element)
             {
-                var scrollViewer = GetScrollViewer(GamesListView);
+                var scrollViewer = UIHelper.GetScrollViewer(GamesListView);
                 if (scrollViewer == null) return;
                 try
                 {
