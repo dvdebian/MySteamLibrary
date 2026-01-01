@@ -28,6 +28,8 @@ namespace MySteamLibrary
     public partial class MainWindow : Window
     {
         // --- Services ---
+        /// <summary> Handles search operations </summary>
+        private readonly SearchService _searchService = new SearchService();
 
         /// <summary> Handles local disk operations for game cover images. </summary>
         private readonly ImageService _imageService = new ImageService();
@@ -227,38 +229,38 @@ namespace MySteamLibrary
         }
 
         /// <summary>
-        /// Filters the Games collection on a background thread using a HashSet for high-speed lookups.
-        /// Updates the UI view and refreshes the game count.
+        /// Executes the search logic. 
+        /// Uses SearchService to find matches in the background and refreshes the UI view.
         /// </summary>
         private async void PerformSearch()
         {
-            if (Games == null) return;
-            if (_allGamesCache == null) InitializeSearchCache();
+            if (Games == null || _allGamesCache == null) return;
 
-            string query = SearchTextBox.Text.Trim().ToLower();
+            // Step 1: Get the filtered results from the service
+            var filteredResults = await _searchService.FilterGamesAsync(_allGamesCache, SearchTextBox.Text);
 
-            var filteredResults = await Task.Run(() =>
-            {
-                if (string.IsNullOrWhiteSpace(query)) return null;
-                return new HashSet<SteamGame>(_allGamesCache
-                    .Where(g => g.Name.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0));
-            });
-
+            // Step 2: Apply the filter to the CollectionView
             var view = CollectionViewSource.GetDefaultView(Games);
             view.Filter = item =>
             {
-                if (filteredResults == null) return true;
+                if (filteredResults == null) return true; // Show all if search is empty
                 return filteredResults.Contains((SteamGame)item);
             };
 
+            // Step 3: Refresh UI elements on the Background priority to keep typing smooth
             await Dispatcher.BeginInvoke(new Action(() =>
             {
                 view.Refresh();
-                if (!view.IsEmpty)
+
+                GamesListView.SelectedIndex = -1;
+
+                // Only auto-select and center if we are in Cover Mode (where selection is needed for the 3D effect)
+                if (CoverModeBtn.IsChecked == true && !view.IsEmpty)
                 {
                     GamesListView.SelectedIndex = 0;
-                    if (CoverModeBtn.IsChecked == true) CenterSelectedItem();
+                    CenterSelectedItem();
                 }
+
                 RefreshCount();
             }), System.Windows.Threading.DispatcherPriority.Background);
         }

@@ -30,12 +30,19 @@ namespace MySteamLibrary.Services
         /// <returns>A list of SteamGame objects populated with basic info and image URLs.</returns>
         public async Task<List<SteamGame>> GetGamesFromApiAsync(string apiKey, string steamId)
         {
-            string url = $"https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key={apiKey}&steamid={steamId}&include_appinfo=true&format=json";
+            string url = $"https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/" +
+                 $"?key={apiKey}&steamid={steamId}" +
+                 $"&include_appinfo=true" +
+                 $"&include_played_free_games=1" +
+                 $"&skip_unvetted_apps=false" +
+                 $"&format=json";
+
             var gamesList = new List<SteamGame>();
 
             try
             {
                 string response = await _httpClient.GetStringAsync(url);
+                
                 using (JsonDocument doc = JsonDocument.Parse(response))
                 {
                     // Check if 'response' or 'games' property exists to avoid null errors
