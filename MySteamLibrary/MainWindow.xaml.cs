@@ -19,47 +19,66 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 
-
 namespace MySteamLibrary
 {
-    
-
-    // Main logic for the application window
+    /// <summary>
+    /// Interaction logic for MainWindow.xaml. 
+    /// Manages the primary UI, user interactions, and coordinates data flow between services.
+    /// </summary>
     public partial class MainWindow : Window
     {
-        // --- Variables & State ---
+        // --- Services ---
+
+        /// <summary> Handles local disk operations for game cover images. </summary>
         private readonly ImageService _imageService = new ImageService();
+
+        /// <summary> Handles Steam API communication and metadata persistence. </summary>
         private readonly SteamService _steamService = new SteamService();
-        // The collection of games bound to the UI
+
+        // --- Data Collections ---
+
+        /// <summary> The primary collection of games bound to the UI. Supports real-time updates. </summary>
         public ObservableCollection<SteamGame> Games { get; set; } = new ObservableCollection<SteamGame>();
 
-        // A static list used for fast search operations without filtering the main collection directly
+        /// <summary> A static list used for fast search operations to avoid threading issues with the UI collection. </summary>
         private List<SteamGame> _allGamesCache;
 
-        // File path where the game list is saved locally
+        // --- State Management ---
+
+        /// <summary> File path for the local JSON database. </summary>
         private string cachePath = "games_cache.json";
 
-        // Stores the time of the last scroll to prevent scroll-wheel spamming
+        /// <summary> Tracks the timestamp of the last scroll event to throttle mouse wheel input. </summary>
         private DateTime _lastScrollTime = DateTime.MinValue;
 
-        // Timer used to delay search execution until the user stops typing
+        /// <summary> Timer used to 'debounce' search input, preventing performance lag while typing. </summary>
         private System.Windows.Threading.DispatcherTimer _searchTimer;
 
-        // Dependency property used to bridge WPF animations with ScrollViewer offsets
+        /// <summary> 
+        /// DependencyProperty used as a bridge to allow WPF Storyboards/Animations 
+        /// to control the ScrollViewer's HorizontalOffset. 
+        /// </summary>
         public static readonly DependencyProperty ScrollHelperProperty =
             DependencyProperty.Register("ScrollHelper", typeof(double), typeof(MainWindow),
                 new PropertyMetadata(0.0, OnScrollHelperChanged));
 
-        // --- Initialization & Setup ---
+        // --- Initialization ---
 
-        // Main constructor: sets up the UI, data binding, and initial data loading
+        /// <summary>
+        /// Initializes the MainWindow, sets up DataBinding, and loads existing data from disk.
+        /// </summary>
         public MainWindow()
         {
             InitializeComponent();
+
+            // Link the UI list to our ObservableCollection
             GamesListView.ItemsSource = Games;
+
+            // Set up default sorting by Game Name (A-Z)
             ICollectionView view = CollectionViewSource.GetDefaultView(Games);
             view.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
 
+            // Load saved games and start background image loading
             LoadGamesFromDisk();
 
             foreach (var game in Games)
@@ -69,7 +88,9 @@ namespace MySteamLibrary
             InitializeSearchCache();
         }
 
-        // Copies the current games list to the search cache for high-speed filtering
+        /// <summary>
+        /// Populates the search cache with a snapshot of the current game list.
+        /// </summary>
         private void InitializeSearchCache()
         {
             if (Games != null && Games.Count > 0)
@@ -80,12 +101,15 @@ namespace MySteamLibrary
 
         // --- UI Event Handlers (Selection & Scrolling) ---
 
-        // Called when the user selects a game; centers the item and fetches its description
+        /// <summary>
+        /// Handles selection changes. Triggers centering logic and lazy-loads game descriptions.
+        /// </summary>
         private async void GamesListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             var selectedGame = GamesListView.SelectedItem as SteamGame;
             if (selectedGame == null) return;
 
+            // Automatically center the game if in Cover Mode
             if (CoverModeBtn.IsChecked == true)
             {
                 Dispatcher.BeginInvoke(new Action(() => {
@@ -93,14 +117,17 @@ namespace MySteamLibrary
                 }), System.Windows.Threading.DispatcherPriority.Loaded);
             }
 
+            // Lazy-load the description if it hasn't been fetched yet
             if (string.IsNullOrEmpty(selectedGame.Description))
             {
-                // CALL THE SERVICE for the description
                 selectedGame.Description = await _steamService.FetchGameDescriptionAsync(selectedGame.AppId);
             }
         }
 
-        // Logic to smoothly animate the selected game into the horizontal center of the screen
+        /// <summary>
+        /// Calculates the required offset to place the selected item in the middle of the viewport
+        /// and executes a smooth CubicEase animation to scroll there.
+        /// </summary>
         private void CenterSelectedItem()
         {
             var scrollViewer = UIHelper.GetScrollViewer(GamesListView);
@@ -113,14 +140,17 @@ namespace MySteamLibrary
             var container = GamesListView.ItemContainerGenerator.ContainerFromItem(item) as FrameworkElement;
             if (container != null && stackPanel != null)
             {
+                // Add margins to the stackpanel so the first/last items can actually reach the center
                 double sideMargin = (scrollViewer.ViewportWidth / 2) - (container.ActualWidth / 2);
                 stackPanel.Margin = new Thickness(sideMargin, 0, sideMargin, 0);
                 stackPanel.UpdateLayout();
 
+                // Calculate the target X position
                 var transform = container.TransformToAncestor((Visual)scrollViewer.Content);
                 Point relativePos = transform.Transform(new Point(0, 0));
                 double targetOffset = relativePos.X - (scrollViewer.ViewportWidth / 2) + (container.ActualWidth / 2);
 
+                // Create the smooth animation
                 DoubleAnimation smoothScroll = new DoubleAnimation
                 {
                     From = scrollViewer.HorizontalOffset,
@@ -133,7 +163,9 @@ namespace MySteamLibrary
             }
         }
 
-        // Maps mouse wheel movement to selecting the next/previous game in Cover Mode
+        /// <summary>
+        /// Throttles mouse wheel input to move selection by exactly one item at a time in Cover Mode.
+        /// </summary>
         private void GamesListView_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
             if (CoverModeBtn.IsChecked == true)
@@ -152,7 +184,9 @@ namespace MySteamLibrary
             }
         }
 
-        // Deselects an item if it is clicked while already selected
+        /// <summary>
+        /// Allows the user to deselect a game by clicking it again.
+        /// </summary>
         private void GamesListView_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             var item = ItemsControl.ContainerFromElement(GamesListView, e.OriginalSource as DependencyObject) as ListViewItem;
@@ -163,7 +197,9 @@ namespace MySteamLibrary
             }
         }
 
-        // Selects a game automatically when the mouse hovers over it in Grid Mode
+        /// <summary>
+        /// Logic for Grid Mode: hover over an item to select it.
+        /// </summary>
         private void ListViewItem_MouseEnter(object sender, MouseEventArgs e)
         {
             if (GridModeBtn.IsChecked == true && sender is ListViewItem item) item.IsSelected = true;
@@ -171,7 +207,9 @@ namespace MySteamLibrary
 
         // --- Search Logic ---
 
-        // Triggers the search timer when the text in the search box changes
+        /// <summary>
+        /// Restarts the debounce timer whenever the search text changes.
+        /// </summary>
         private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (_searchTimer == null)
@@ -188,7 +226,10 @@ namespace MySteamLibrary
             _searchTimer.Start();
         }
 
-        // Filters the game collection based on the search query using background processing
+        /// <summary>
+        /// Filters the Games collection on a background thread using a HashSet for high-speed lookups.
+        /// Updates the UI view and refreshes the game count.
+        /// </summary>
         private async void PerformSearch()
         {
             if (Games == null) return;
@@ -224,44 +265,50 @@ namespace MySteamLibrary
 
         // --- Data & API Operations ---
 
-        // Handles image caching: loads from local disk if available, otherwise downloads from Steam
+        /// <summary>
+        /// Orchestrates image loading: checks local storage first, downloads if missing, 
+        /// then converts the file into a UI-ready BitmapImage.
+        /// </summary>
         private async Task LoadImageWithCache(SteamGame game)
         {
             try
             {
                 string localPath = _imageService.GetLocalImagePath(game.AppId);
 
+                // Download if file doesn't exist
                 if (!_imageService.DoesImageExistLocally(game.AppId))
                 {
                     await _imageService.DownloadAndSaveImageAsync(game.AppId, game.ImageUrl);
                 }
 
-                // CRITICAL CHECK: Only try to load the bitmap if the download actually succeeded
+                // If file exists, load it into memory and freeze it for cross-thread UI performance
                 if (_imageService.DoesImageExistLocally(game.AppId))
                 {
                     BitmapImage bitmap = new BitmapImage();
                     bitmap.BeginInit();
                     bitmap.UriSource = new Uri(localPath);
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad; // Prevents the file from being locked on disk
                     bitmap.EndInit();
                     bitmap.Freeze();
                     game.DisplayImage = bitmap;
                 }
                 else
                 {
-                    // If the file doesn't exist (e.g. 404 on the 600x900 image), 
-                    // set the URL to trigger the Image_ImageFailed waterfall
+                    // Fallback to URL to trigger Waterfall logic in Image_ImageFailed
                     game.DisplayImage = game.ImageUrl;
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"UI Load error for {game.Name}: {ex.Message}");
-                game.DisplayImage = game.ImageUrl; // Fallback to URL
+                game.DisplayImage = game.ImageUrl;
             }
         }
 
-        // Connects to Steam API to fetch the user's list of owned games
+        /// <summary>
+        /// Button handler to fetch the user's library from Steam. 
+        /// Compares fetched data with current list to avoid duplicates and saves the new list to disk.
+        /// </summary>
         private async void LoadGames_Click(object sender, RoutedEventArgs e)
         {
             string apiKey = Properties.Settings.Default.SteamApiKey;
@@ -275,7 +322,6 @@ namespace MySteamLibrary
 
             try
             {
-                // 1. CALL THE SERVICE to fetch from web
                 var fetchedGames = await _steamService.GetGamesFromApiAsync(apiKey, steamId);
 
                 bool newGamesAdded = false;
@@ -284,19 +330,16 @@ namespace MySteamLibrary
                     if (!Games.Any(g => g.AppId == game.AppId))
                     {
                         Games.Add(game);
-                        // Keep image loading in MainWindow for now as it uses WPF Bitmaps
                         _ = LoadImageWithCache(game);
                         newGamesAdded = true;
                     }
                 }
 
-                // 2. CALL THE SERVICE to save to disk (Replaces SaveGamesToDisk())
                 if (newGamesAdded)
                 {
                     _steamService.SaveGamesToDisk(Games);
                 }
 
-                // 3. UI Updates stay in MainWindow
                 InitializeSearchCache();
                 RefreshCount();
             }
@@ -306,8 +349,10 @@ namespace MySteamLibrary
             }
         }
 
-
-        // Fetches game descriptions from the Steam Store API
+        /// <summary>
+        /// Direct store API call to fetch short descriptions.
+        /// Note: This logic is partially duplicated in SteamService.
+        /// </summary>
         private async Task FetchGameDescription(SteamGame game)
         {
             try
@@ -334,7 +379,7 @@ namespace MySteamLibrary
 
         // --- Settings Management ---
 
-        // Opens the settings overlay and populates it with saved values
+        /// <summary> Displays the Settings UI overlay with current saved values. </summary>
         private void OpenSettings_Click(object sender, RoutedEventArgs e)
         {
             ApiKeyInput.Text = Properties.Settings.Default.SteamApiKey;
@@ -342,7 +387,7 @@ namespace MySteamLibrary
             SettingsOverlay.Visibility = Visibility.Visible;
         }
 
-        // Saves settings to the local configuration file
+        /// <summary> Saves input settings to the application's configuration file. </summary>
         private void SaveSettings_Click(object sender, RoutedEventArgs e)
         {
             Properties.Settings.Default.SteamApiKey = ApiKeyInput.Text.Trim();
@@ -351,13 +396,16 @@ namespace MySteamLibrary
             SettingsOverlay.Visibility = Visibility.Collapsed;
         }
 
-        // Closes the settings overlay without saving
+        /// <summary> Dismisses the settings overlay. </summary>
         private void CancelSettings_Click(object sender, RoutedEventArgs e)
         {
             SettingsOverlay.Visibility = Visibility.Collapsed;
         }
 
-        // Deletes all downloaded images from the local cache folder
+        /// <summary>
+        /// Performs a "Hard Reset": Clears the image folder, deletes the JSON database, 
+        /// and empties the UI collection.
+        /// </summary>
         private void ClearCache_Click(object sender, RoutedEventArgs e)
         {
             var result = MessageBox.Show("This will delete all cached images and your game list. Continue?",
@@ -365,16 +413,9 @@ namespace MySteamLibrary
 
             if (result == MessageBoxResult.Yes)
             {
-                // 1. Delete the images via ImageService
                 int deletedCount = _imageService.ClearAllCachedImages();
-
-                // 2. Delete the JSON via SteamService
                 _steamService.DeleteGamesCache();
-
-                // 3. Clear the UI collection so the games vanish from the screen
                 Games.Clear();
-
-                // 4. Reset the search cache and count
                 InitializeSearchCache();
                 RefreshCount();
 
@@ -384,7 +425,9 @@ namespace MySteamLibrary
 
         // --- Utilities & Helper Methods ---
 
-        // Callback used by the ScrollHelper dependency property to apply animation values to the ScrollViewer
+        /// <summary>
+        /// Updates the ScrollViewer's offset whenever the ScrollHelper dependency property is animated.
+        /// </summary>
         private static void OnScrollHelperChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var window = d as MainWindow;
@@ -392,7 +435,7 @@ namespace MySteamLibrary
             if (viewer != null) viewer.ScrollToHorizontalOffset((double)e.NewValue);
         }
 
-        // Recursively searches the visual tree for a child of a specific type
+        /// <summary> Helper to drill down the Visual Tree to find a specific element type. </summary>
         private T FindVisualChild<T>(DependencyObject obj) where T : DependencyObject
         {
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(obj); i++)
@@ -405,7 +448,7 @@ namespace MySteamLibrary
             return null;
         }
 
-        // Finds the ScrollViewer component within a specific UI object
+        /// <summary> Helper to locate the ScrollViewer within a control. </summary>
         private ScrollViewer GetScrollViewer(DependencyObject depObj)
         {
             if (depObj is ScrollViewer viewer) return viewer;
@@ -418,13 +461,13 @@ namespace MySteamLibrary
             return null;
         }
 
-        // Recalculates the game count label based on the current filtered view
+        /// <summary> Updates the UI label with the current number of filtered games. </summary>
         private void RefreshCount() => CountLabel.Text = $"{CollectionViewSource.GetDefaultView(Games).Cast<object>().Count()} Games";
 
-        // Saves the current game collection metadata to a JSON file
+        /// <summary> Legacy local save method (Redirected to SteamService in LoadGames_Click). </summary>
         private void SaveGamesToDisk() => File.WriteAllText(cachePath, JsonSerializer.Serialize(Games));
 
-        // Loads game collection metadata from the local JSON file
+        /// <summary> Loads game collection from the JSON file and prepares image loading. </summary>
         private void LoadGamesFromDisk()
         {
             if (!File.Exists(cachePath)) return;
@@ -437,7 +480,7 @@ namespace MySteamLibrary
             }
         }
 
-        // Handles window resizing to ensure the selected game stays centered
+        /// <summary> Ensures the selection remains centered if the window is resized. </summary>
         private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (CoverModeBtn.IsChecked == true && GamesListView.SelectedItem != null)
@@ -446,7 +489,9 @@ namespace MySteamLibrary
             }
         }
 
-        // Switches between Grid Mode and Cover Mode and resets scroll positions
+        /// <summary>
+        /// Handles switching between Grid and Cover layouts. Resets scroll positions for a clean view.
+        /// </summary>
         private void Mode_Changed(object sender, RoutedEventArgs e)
         {
             if (GamesListView == null || GamesListView.Items.Count == 0) return;
@@ -462,7 +507,10 @@ namespace MySteamLibrary
             }));
         }
 
-        // Custom logic to override standard scroll-into-view behavior with centered scrolling
+        /// <summary>
+        /// Overrides standard scroll behavior to ensure that when an item is brought into view,
+        /// it uses our custom centering logic instead of the default left-alignment.
+        /// </summary>
         private void GamesListView_RequestBringIntoView(object sender, RequestBringIntoViewEventArgs e)
         {
             e.Handled = true;
@@ -482,7 +530,14 @@ namespace MySteamLibrary
             }
         }
 
-        // Fallback logic for when a game image fails to load (tries headers, then icons, then placeholders)
+        /// <summary>
+        /// The Image Waterfall Fallback Logic.
+        /// When a 404 occurs, this method cycles through available Steam image types:
+        /// 1. Library 600x900 (Portrait)
+        /// 2. App Header (Horizontal)
+        /// 3. App Icon (Small hash-based image)
+        /// 4. Official Steam Placeholder
+        /// </summary>
         private void Image_ImageFailed(object sender, ExceptionRoutedEventArgs e)
         {
             var img = sender as Image;
@@ -490,13 +545,19 @@ namespace MySteamLibrary
             if (game == null) return;
             string currentUrl = game.DisplayImage?.ToString() ?? "";
 
+            // Fallback Level 1: Try Header
             if (currentUrl.Contains("library_600x900"))
                 game.DisplayImage = $"https://cdn.cloudflare.steamstatic.com/steam/apps/{game.AppId}/header.jpg";
+
+            // Fallback Level 2: Try Icon
             else if (currentUrl.Contains("header.jpg") && !string.IsNullOrEmpty(game.IconUrl))
                 game.DisplayImage = game.IconUrl;
+
+            // Fallback Level 3: Generic Placeholder
             else
                 game.DisplayImage = "https://community.cloudflare.steamstatic.com/public/images/applications/store/placeholder.png";
 
+            // Save the working URL so we don't repeat this waterfall on next launch
             _steamService.SaveGamesToDisk(Games);
         }
     }

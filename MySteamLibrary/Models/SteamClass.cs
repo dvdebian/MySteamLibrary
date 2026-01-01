@@ -8,53 +8,77 @@ using System.Threading.Tasks;
 
 namespace MySteamLibrary.Models
 {
-    // Class representing a single Steam game and its properties
+    /// <summary>
+    /// Represents a single Steam game within the library.
+    /// Implements INotifyPropertyChanged to ensure the WPF UI updates automatically 
+    /// when descriptions or images are loaded asynchronously.
+    /// </summary>
     public class SteamGame : INotifyPropertyChanged
     {
-        // --- Variables / Properties ---
+        // --- Core Data Properties ---
 
-        // The name of the game
+        /// <summary> The official title of the game. </summary>
         public string Name { get; set; }
 
-        // The unique Steam Application ID
+        /// <summary> The unique numerical identifier assigned by Steam. </summary>
         public int AppId { get; set; }
 
-        // Formatted string showing how long the game has been played
+        /// <summary> A formatted string representing total play duration (e.g., "10.5 hours"). </summary>
         public string Playtime { get; set; }
 
-        // URL for the small square icon
+        /// <summary> 
+        /// URL for the small application icon. 
+        /// Used as a backup in the "Waterfall" logic if larger images are missing. 
+        /// </summary>
         public string IconUrl { get; set; }
 
-        // URL for the large library artwork
+        /// <summary> The primary remote URL for the high-quality portrait artwork (600x900). </summary>
         public string ImageUrl { get; set; }
 
-        // Backing field for the game description
-        private string _description;
+        // --- Observable Properties (UI Bound) ---
 
-        // The textual description of the game with change notification
+        private string _description;
+        /// <summary> 
+        /// The textual description of the game. 
+        /// Fetched lazily when a game is selected; updates the UI via OnPropertyChanged.
+        /// </summary>
         public string Description
         {
             get => _description;
-            set { _description = value; OnPropertyChanged(nameof(Description)); }
+            set
+            {
+                _description = value;
+                OnPropertyChanged(nameof(Description));
+            }
         }
 
-        // Backing field for the actual image displayed in the UI
         private object _displayImage;
-
-        // The image object (Bitmap or URL) used by the UI; ignored during JSON serialization
+        /// <summary> 
+        /// The actual source used by the WPF Image control. 
+        /// This can be a BitmapImage (local cache) or a string (remote URL).
+        /// [JsonIgnore] prevents this complex object from being saved into the JSON database.
+        /// </summary>
         [JsonIgnore]
         public object DisplayImage
         {
             get => _displayImage;
-            set { _displayImage = value; OnPropertyChanged(nameof(DisplayImage)); }
+            set
+            {
+                _displayImage = value;
+                OnPropertyChanged(nameof(DisplayImage));
+            }
         }
 
         // --- Notification Logic ---
 
-        // Event triggered when a property value changes to update the UI
+        /// <summary> Event raised when a property value changes. </summary>
         public event PropertyChangedEventHandler PropertyChanged;
 
-        // Helper method to raise the PropertyChanged event
-        protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        /// <summary>
+        /// Helper method to notify the WPF Binding system that a property has changed.
+        /// </summary>
+        /// <param name="name">The name of the property that changed.</param>
+        protected void OnPropertyChanged(string name) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }
