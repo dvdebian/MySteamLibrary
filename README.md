@@ -65,7 +65,7 @@ The application implements `INotifyPropertyChanged` on the `SteamGame` model, en
 ---
 
 ## 🤖 Built With AI (Blame Google, not me)
-This project was developed and refined with the assistance of **Gemini 1.5 Flash**, an AI model by Google. Gemini helped in:
+This project was developed and refined with the assistance of **Gemini 1.5 Flash** and **Gemini 3 Flash** , an AI model by Google. Gemini helped in:
 * Architectural design and C# logic implementation.
 * UI/UX optimization for the WPF environment.
 * Code documentation and professional project structuring.
