@@ -349,34 +349,7 @@ namespace MySteamLibrary
             }
         }
 
-        /// <summary>
-        /// Direct store API call to fetch short descriptions.
-        /// Note: This logic is partially duplicated in SteamService.
-        /// </summary>
-        private async Task FetchGameDescription(SteamGame game)
-        {
-            try
-            {
-                using (HttpClient client = new HttpClient())
-                {
-                    string url = $"https://store.steampowered.com/api/appdetails?appids={game.AppId}";
-                    string json = await client.GetStringAsync(url);
-                    using (JsonDocument doc = JsonDocument.Parse(json))
-                    {
-                        var root = doc.RootElement.GetProperty(game.AppId.ToString());
-                        if (root.GetProperty("success").GetBoolean())
-                        {
-                            var data = root.GetProperty("data");
-                            string rawDesc = data.GetProperty("short_description").GetString();
-                            game.Description = System.Net.WebUtility.HtmlDecode(rawDesc)
-                                .Replace("<b>", "").Replace("</b>", "").Replace("<br>", "\n");
-                        }
-                    }
-                }
-            }
-            catch { game.Description = "Details currently unavailable."; }
-        }
-
+        
         // --- Settings Management ---
 
         /// <summary> Displays the Settings UI overlay with current saved values. </summary>
