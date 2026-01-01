@@ -154,5 +154,33 @@ namespace MySteamLibrary.Services
                 File.Delete(_cachePath);
             }
         }
+
+        /// <summary>
+        /// Determines the next URL to try when a game image fails to load.
+        /// Logic: 600x900 -> Header -> Icon -> Placeholder.
+        /// </summary>
+        /// <param name="appId">The Steam AppID of the game.</param>
+        /// <param name="failedUrl">The URL that just failed to load.</param>
+        /// <param name="iconUrl">The pre-stored icon URL for this game.</param>
+        /// <returns>The next string URL to attempt loading.</returns>
+        public string GetFallbackImageUrl(int appId, string failedUrl, string iconUrl)
+        {
+            if (string.IsNullOrEmpty(failedUrl)) return iconUrl;
+
+            // If the 600x900 portrait failed, try the horizontal header
+            if (failedUrl.Contains("library_600x900"))
+            {
+                return $"https://cdn.cloudflare.steamstatic.com/steam/apps/{appId}/header.jpg";
+            }
+
+            // If the header failed and we have an icon URL, try the icon
+            if (failedUrl.Contains("header.jpg") && !string.IsNullOrEmpty(iconUrl))
+            {
+                return iconUrl;
+            }
+
+            // Final fallback: the generic Steam placeholder
+            return "https://community.cloudflare.steamstatic.com/public/images/applications/store/placeholder.png";
+        }
     }
 }

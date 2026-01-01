@@ -504,34 +504,22 @@ namespace MySteamLibrary
         }
 
         /// <summary>
-        /// The Image Waterfall Fallback Logic.
-        /// When a 404 occurs, this method cycles through available Steam image types:
-        /// 1. Library 600x900 (Portrait)
-        /// 2. App Header (Horizontal)
-        /// 3. App Icon (Small hash-based image)
-        /// 4. Official Steam Placeholder
+        /// Triggered when an image fails to load (usually a 404 from Steam's CDN).
+        /// Delegates the "Waterfall" fallback logic to the SteamService and saves the
+        /// successful fallback URL to prevent future load failures.
         /// </summary>
         private void Image_ImageFailed(object sender, ExceptionRoutedEventArgs e)
         {
-            var img = sender as Image;
-            var game = img?.DataContext as SteamGame;
-            if (game == null) return;
-            string currentUrl = game.DisplayImage?.ToString() ?? "";
+            if (sender is Image img && img.DataContext is SteamGame game)
+            {
+                string currentUrl = game.DisplayImage?.ToString() ?? "";
 
-            // Fallback Level 1: Try Header
-            if (currentUrl.Contains("library_600x900"))
-                game.DisplayImage = $"https://cdn.cloudflare.steamstatic.com/steam/apps/{game.AppId}/header.jpg";
+                // Ask the service for the next step in the waterfall
+                game.DisplayImage = _steamService.GetFallbackImageUrl(game.AppId, currentUrl, game.IconUrl);
 
-            // Fallback Level 2: Try Icon
-            else if (currentUrl.Contains("header.jpg") && !string.IsNullOrEmpty(game.IconUrl))
-                game.DisplayImage = game.IconUrl;
-
-            // Fallback Level 3: Generic Placeholder
-            else
-                game.DisplayImage = "https://community.cloudflare.steamstatic.com/public/images/applications/store/placeholder.png";
-
-            // Save the working URL so we don't repeat this waterfall on next launch
-            _steamService.SaveGamesToDisk(Games);
+                // Save the result so we don't have to fail again next time
+                _steamService.SaveGamesToDisk(Games);
+            }
         }
     }
 }
