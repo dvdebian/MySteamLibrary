@@ -49,25 +49,36 @@ namespace MySteamLibrary.Services
         }
 
         /// <summary>
-        /// Asynchronously downloads image data from a URL and writes it to the local cache folder.
+        /// Asynchronously downloads image data. 
+        /// Checks the HTTP response status to handle 404 errors gracefully without throwing exceptions.
         /// </summary>
-        /// <param name="appId">The Steam Application ID used to name the file.</param>
-        /// <param name="imageUrl">The remote URL of the image.</param>
-        /// <returns>A task representing the asynchronous operation.</returns>
-        public async Task DownloadAndSaveImageAsync(int appId, string imageUrl)
+        /// <param name="appId">The Steam AppID used for the filename.</param>
+        /// <param name="imageUrl">The remote URL to download.</param>
+        /// <returns>True if the download succeeded and was saved; otherwise, false.</returns>
+        public async Task<bool> DownloadAndSaveImageAsync(int appId, string imageUrl)
         {
             try
             {
-                // Fetch image as byte array to handle binary data correctly
-                byte[] data = await _httpClient.GetByteArrayAsync(imageUrl);
+                // Use GetAsync to check the headers/status before downloading the whole body
+                using (HttpResponseMessage response = await _httpClient.GetAsync(imageUrl))
+                {
+                    // If Steam returns 404 (Not Found) or 500 (Server Error), exit early
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Download skipped for {appId}: Server returned {response.StatusCode}");
+                        return false;
+                    }
 
-                // Write directly to disk using the AppID as the filename
-                await File.WriteAllBytesAsync(GetLocalImagePath(appId), data);
+                    // If success, read the actual bytes and save to disk
+                    byte[] data = await response.Content.ReadAsByteArrayAsync();
+                    await File.WriteAllBytesAsync(GetLocalImagePath(appId), data);
+                    return true;
+                }
             }
             catch (Exception ex)
             {
-                // Log failure to the Output window for debugging
-                System.Diagnostics.Debug.WriteLine($"Download failed for {appId}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Network error for {appId}: {ex.Message}");
+                return false;
             }
         }
 

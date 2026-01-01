@@ -266,41 +266,48 @@ namespace MySteamLibrary
         // --- Data & API Operations ---
 
         /// <summary>
-        /// Orchestrates image loading: checks local storage first, downloads if missing, 
-        /// then converts the file into a UI-ready BitmapImage.
+        /// Manages the lifecycle of a game's visual representation.
+        /// 1. Checks for a local cached version of the image.
+        /// 2. If missing, attempts a graceful download (handling 404s via ImageService).
+        /// 3. If available locally, loads the file into a 'Frozen' BitmapImage for UI performance.
+        /// 4. If download fails, sets the URL to trigger the secondary Waterfall fallback logic.
         /// </summary>
+        /// <param name="game">The SteamGame object to update with a displayable image.</param>
         private async Task LoadImageWithCache(SteamGame game)
         {
             try
             {
                 string localPath = _imageService.GetLocalImagePath(game.AppId);
 
-                // Download if file doesn't exist
-                if (!_imageService.DoesImageExistLocally(game.AppId))
+                // Try to download only if it doesn't exist locally
+                bool exists = _imageService.DoesImageExistLocally(game.AppId);
+
+                if (!exists)
                 {
-                    await _imageService.DownloadAndSaveImageAsync(game.AppId, game.ImageUrl);
+                    // The method now returns true/false instead of crashing on 404
+                    exists = await _imageService.DownloadAndSaveImageAsync(game.AppId, game.ImageUrl);
                 }
 
-                // If file exists, load it into memory and freeze it for cross-thread UI performance
-                if (_imageService.DoesImageExistLocally(game.AppId))
+                if (exists)
                 {
+                    // Load from local disk
                     BitmapImage bitmap = new BitmapImage();
                     bitmap.BeginInit();
                     bitmap.UriSource = new Uri(localPath);
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad; // Prevents the file from being locked on disk
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
                     bitmap.EndInit();
                     bitmap.Freeze();
                     game.DisplayImage = bitmap;
                 }
                 else
                 {
-                    // Fallback to URL to trigger Waterfall logic in Image_ImageFailed
+                    // Trigger the Waterfall because the download failed (404)
                     game.DisplayImage = game.ImageUrl;
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"UI Load error for {game.Name}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"UI Load error: {ex.Message}");
                 game.DisplayImage = game.ImageUrl;
             }
         }
