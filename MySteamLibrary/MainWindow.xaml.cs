@@ -236,14 +236,23 @@ namespace MySteamLibrary
                     await _imageService.DownloadAndSaveImageAsync(game.AppId, game.ImageUrl);
                 }
 
-                // WPF UI Logic stays here
-                BitmapImage bitmap = new BitmapImage();
-                bitmap.BeginInit();
-                bitmap.UriSource = new Uri(localPath);
-                bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                bitmap.EndInit();
-                bitmap.Freeze();
-                game.DisplayImage = bitmap;
+                // CRITICAL CHECK: Only try to load the bitmap if the download actually succeeded
+                if (_imageService.DoesImageExistLocally(game.AppId))
+                {
+                    BitmapImage bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri(localPath);
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.EndInit();
+                    bitmap.Freeze();
+                    game.DisplayImage = bitmap;
+                }
+                else
+                {
+                    // If the file doesn't exist (e.g. 404 on the 600x900 image), 
+                    // set the URL to trigger the Image_ImageFailed waterfall
+                    game.DisplayImage = game.ImageUrl;
+                }
             }
             catch (Exception ex)
             {
@@ -351,12 +360,25 @@ namespace MySteamLibrary
         // Deletes all downloaded images from the local cache folder
         private void ClearCache_Click(object sender, RoutedEventArgs e)
         {
-            var result = MessageBox.Show("Delete all locally cached game covers?", "Clear Cache", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var result = MessageBox.Show("This will delete all cached images and your game list. Continue?",
+                                        "Full Reset", MessageBoxButton.YesNo, MessageBoxImage.Warning);
 
             if (result == MessageBoxResult.Yes)
             {
-                int deleted = _imageService.ClearAllCachedImages();
-                MessageBox.Show($"Cache cleared! Deleted {deleted} images.", "Success");
+                // 1. Delete the images via ImageService
+                int deletedCount = _imageService.ClearAllCachedImages();
+
+                // 2. Delete the JSON via SteamService
+                _steamService.DeleteGamesCache();
+
+                // 3. Clear the UI collection so the games vanish from the screen
+                Games.Clear();
+
+                // 4. Reset the search cache and count
+                InitializeSearchCache();
+                RefreshCount();
+
+                MessageBox.Show($"Cache cleared! Deleted {deletedCount} images and game metadata.", "Success");
             }
         }
 
@@ -475,7 +497,7 @@ namespace MySteamLibrary
             else
                 game.DisplayImage = "https://community.cloudflare.steamstatic.com/public/images/applications/store/placeholder.png";
 
-            SaveGamesToDisk();
+            _steamService.SaveGamesToDisk(Games);
         }
     }
 }

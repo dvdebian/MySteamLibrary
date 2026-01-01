@@ -31,6 +31,12 @@ namespace MySteamLibrary.Services
                 {
                     int id = el.GetProperty("appid").GetInt32();
                     int minutes = el.TryGetProperty("playtime_forever", out var pt) ? pt.GetInt32() : 0;
+                    // --- NEW: Get the icon hash and build the URL ---
+                    string iconHash = el.TryGetProperty("img_icon_url", out var iconProp) ? iconProp.GetString() : "";
+                    string iconUrl = string.IsNullOrEmpty(iconHash)
+                        ? ""
+                        : $"https://media.steampowered.com/steamcommunity/public/images/apps/{id}/{iconHash}.jpg";
+                    // ------------------------------------------------
 
                     gamesList.Add(new SteamGame
                     {
@@ -38,6 +44,7 @@ namespace MySteamLibrary.Services
                         Name = el.GetProperty("name").GetString(),
                         Playtime = minutes == 0 ? "Not played" : $"{Math.Round(minutes / 60.0, 1)} hours",
                         ImageUrl = $"https://cdn.cloudflare.steamstatic.com/steam/apps/{id}/library_600x900.jpg",
+                        IconUrl = iconUrl, // Set the new property here
                         DisplayImage = null
                     });
                 }
@@ -97,6 +104,14 @@ namespace MySteamLibrary.Services
             catch
             {
                 return new List<SteamGame>();
+            }
+        }
+
+        public void DeleteGamesCache()
+        {
+            if (File.Exists(_cachePath))
+            {
+                File.Delete(_cachePath);
             }
         }
     }
