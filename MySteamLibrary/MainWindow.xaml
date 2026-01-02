@@ -191,8 +191,51 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
+
                         <TextBlock Text="SEARCH" VerticalAlignment="Center" Margin="0,0,15,0" Foreground="#67c1f5" FontWeight="Bold" FontSize="11"/>
-                        <TextBox x:Name="SearchTextBox" Grid.Column="1" Padding="10" Background="#2a475e" Foreground="White" BorderThickness="0" TextChanged="SearchTextBox_TextChanged"/>
+
+                        <Grid Grid.Column="1">
+                            <TextBox x:Name="SearchTextBox" 
+                                     Padding="10,10,35,10" 
+                                     Background="#2a475e" 
+                                     Foreground="White" 
+                                     BorderThickness="0" 
+                                     TextChanged="SearchTextBox_TextChanged"/>
+
+                            <Button x:Name="ClearSearchBtn"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,10,0"
+                                    Width="18"
+                                    Height="18"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Cursor="Hand"
+                                    Visibility="Collapsed"
+                                    Click="ClearSearchBtn_Click">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Grid Background="Transparent">
+                                            <Ellipse x:Name="Circle" Fill="#4b6171" Opacity="0.6"/>
+
+                                            <Viewbox Margin="5">
+                                                <Path Data="M 0,0 L 10,10 M 0,10 L 10,0" 
+                                                      Stroke="White" 
+                                                      StrokeThickness="2" 
+                                                      StrokeStartLineCap="Round" 
+                                                      StrokeEndLineCap="Round"/>
+                                            </Viewbox>
+                                        </Grid>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Circle" Property="Fill" Value="#67c1f5"/>
+                                                <Setter TargetName="Circle" Property="Opacity" Value="1"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </Grid>
                     </Grid>
                 </StackPanel>
             </Border>

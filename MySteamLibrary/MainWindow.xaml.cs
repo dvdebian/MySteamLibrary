@@ -209,11 +209,23 @@ namespace MySteamLibrary
 
         // --- Search Logic ---
 
+        // --- Search Logic ---
+
         /// <summary>
-        /// Restarts the debounce timer whenever the search text changes.
+        /// Handles changes in the search input. Updates the UI state of the clear button 
+        /// and manages the debounce timer to prevent excessive API/filtering calls.
         /// </summary>
         private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
+            // Update the visibility of the 'X' button based on whether there is text to clear.
+            if (ClearSearchBtn != null)
+            {
+                ClearSearchBtn.Visibility = string.IsNullOrEmpty(SearchTextBox.Text)
+                    ? Visibility.Collapsed
+                    : Visibility.Visible;
+            }
+
+            // Initialize the debounce timer if it doesn't exist.
             if (_searchTimer == null)
             {
                 _searchTimer = new System.Windows.Threading.DispatcherTimer();
@@ -221,11 +233,27 @@ namespace MySteamLibrary
                 _searchTimer.Tick += (s, args) =>
                 {
                     _searchTimer.Stop();
-                    PerformSearch();
+                    PerformSearch(); // Execute the actual search logic after the user stops typing.
                 };
             }
+
+            // Reset the timer on every keystroke.
             _searchTimer.Stop();
             _searchTimer.Start();
+        }
+
+        /// <summary>
+        /// Clears the search box and returns focus to the input field.
+        /// This will automatically trigger the TextChanged event.
+        /// </summary>
+        private void ClearSearchBtn_Click(object sender, RoutedEventArgs e)
+        {
+            // Clearing the text triggers SearchTextBox_TextChanged, 
+            // which handles the UI reset and refreshes the game list.
+            SearchTextBox.Text = string.Empty;
+
+            // Return focus to the text box so the user can immediately start a new search.
+            SearchTextBox.Focus();
         }
 
         /// <summary>

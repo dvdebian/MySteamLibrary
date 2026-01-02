@@ -1,4 +1,8 @@
 ## .NET / Visual Studio
+publish_output/
+FINAL_RELEASE/
+SMALL_RELEASE/
+FINAL_v1.1.0/
 [Bb]in/
 [Oo]bj/
 *.user

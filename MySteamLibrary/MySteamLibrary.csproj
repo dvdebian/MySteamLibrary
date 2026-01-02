@@ -1,38 +1,49 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
-    <ApplicationIcon>MySteamLibrary.ico</ApplicationIcon>
-    <AssemblyName>My Steam Library</AssemblyName>
-    <RootNamespace>MySteamLibrary</RootNamespace>
-  </PropertyGroup>
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<UseWPF>true</UseWPF>
+		<ApplicationIcon>MySteamLibrary.ico</ApplicationIcon>
+		<AssemblyName>My Steam Library</AssemblyName>
+		<RootNamespace>MySteamLibrary</RootNamespace>
 
-  <ItemGroup>
-    <Resource Include="MySteamLibrary.ico" />
-  </ItemGroup>
+		<Version>1.1.0</Version>
+		<AssemblyVersion>1.1.0</AssemblyVersion>
+		<FileVersion>1.1.0</FileVersion>
 
-  <ItemGroup>
-    <Compile Update="Properties\Settings.Designer.cs">
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-    </Compile>
-  </ItemGroup>
+		<PublishSingleFile>true</PublishSingleFile>
+		<SelfContained>false</SelfContained>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 
-  <ItemGroup>
-    <None Update="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-  </ItemGroup>
+		<SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+		<DebugType>none</DebugType>
+		<DebugSymbols>false</DebugSymbols>
 
-  <ItemGroup>
-    <Folder Include="Converters\" />
-    <Folder Include="Views\" />
-  </ItemGroup>
+		<UseAppHost>true</UseAppHost>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Resource Include="MySteamLibrary.ico" />
+	</ItemGroup>
+	<ItemGroup>
+		<Compile Update="Properties\Settings.Designer.cs">
+			<DesignTimeSharedInput>True</DesignTimeSharedInput>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Settings.settings</DependentUpon>
+		</Compile>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="Properties\Settings.settings">
+			<Generator>SettingsSingleFileGenerator</Generator>
+			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<Folder Include="Converters\" />
+		<Folder Include="Views\" />
+	</ItemGroup>
 
 </Project>
