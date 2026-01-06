@@ -151,6 +151,9 @@ namespace MySteamLibrary
                 var transform = container.TransformToAncestor((Visual)scrollViewer.Content);
                 Point relativePos = transform.Transform(new Point(0, 0));
                 double targetOffset = relativePos.X - (scrollViewer.ViewportWidth / 2) + (container.ActualWidth / 2);
+                
+
+             
 
                 // Create the smooth animation
                 DoubleAnimation smoothScroll = new DoubleAnimation
@@ -163,14 +166,41 @@ namespace MySteamLibrary
 
                 this.BeginAnimation(ScrollHelperProperty, smoothScroll);
             }
+            // At the very end of CenterSelectedItem()
+            if (CarouselModeBtn.IsChecked == true)
+            {
+                UpdateCarouselPerspective();
+            }
         }
 
         /// <summary>
         /// Throttles mouse wheel input to move selection by exactly one item at a time in Cover Mode.
         /// </summary>
+        //private void GamesListView_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        //{
+        //    if (CoverModeBtn.IsChecked == true || CarouselModeBtn.IsChecked == true)
+        //    {
+        //        e.Handled = true;
+        //        if ((DateTime.Now - _lastScrollTime).TotalMilliseconds < 250) return;
+        //        _lastScrollTime = DateTime.Now;
+
+        //        int newIndex = GamesListView.SelectedIndex;
+        //        if (e.Delta < 0) newIndex++; else newIndex--;
+
+        //        if (newIndex >= 0 && newIndex < GamesListView.Items.Count)
+        //        {
+        //            GamesListView.SelectedIndex = newIndex;
+        //            // Force the ListView to bring the new selection to the center
+        //            GamesListView.ScrollIntoView(GamesListView.SelectedItem);
+        //        }
+        //    }
+        //}
+
+
+
         private void GamesListView_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            if (CoverModeBtn.IsChecked == true)
+            if (CoverModeBtn.IsChecked == true || CarouselModeBtn.IsChecked == true)
             {
                 e.Handled = true;
                 if ((DateTime.Now - _lastScrollTime).TotalMilliseconds < 250) return;
@@ -182,9 +212,24 @@ namespace MySteamLibrary
                 if (newIndex >= 0 && newIndex < GamesListView.Items.Count)
                 {
                     GamesListView.SelectedIndex = newIndex;
+
+                    // This is the fix. We replace ScrollIntoView with your centering logic.
+                    // We use the Dispatcher to ensure the "SelectedIndex" change has 
+                    // finished before we calculate the math.
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        CenterSelectedItem();
+                    }), System.Windows.Threading.DispatcherPriority.Loaded);
                 }
             }
         }
+
+
+
+
+
+
+
 
         /// <summary>
         /// Allows the user to deselect a game by clicking it again.
@@ -205,6 +250,108 @@ namespace MySteamLibrary
         private void ListViewItem_MouseEnter(object sender, MouseEventArgs e)
         {
             if (GridModeBtn.IsChecked == true && sender is ListViewItem item) item.IsSelected = true;
+        }
+
+        private void UpdateCarouselPerspective()
+        {
+            if (CarouselModeBtn.IsChecked != true) return;
+
+            int selectedIndex = GamesListView.SelectedIndex;
+            if (selectedIndex < 0) return;
+
+            for (int i = 0; i < GamesListView.Items.Count; i++)
+            {
+                var container = GamesListView.ItemContainerGenerator.ContainerFromIndex(i) as ListViewItem;
+                if (container == null) continue;
+
+                var border = UIHelper.FindChild<Border>(container, "BaseBorder");
+                if (border == null) continue;
+
+                // Ensure we have 3 transforms (Skew, Scale, Translate)
+                if (!(border.RenderTransform is TransformGroup group) || group.Children.Count < 3 || group.IsFrozen)
+                {
+                    var newGroup = new TransformGroup();
+                    newGroup.Children.Add(new SkewTransform(0, 0));    // 0
+                    newGroup.Children.Add(new ScaleTransform(1, 1));   // 1
+                    newGroup.Children.Add(new TranslateTransform(0, 0)); // 2
+                    border.RenderTransform = newGroup;
+                    group = newGroup;
+                }
+
+                var skew = (SkewTransform)group.Children[0];
+                var scale = (ScaleTransform)group.Children[1];
+                var trans = (TranslateTransform)group.Children[2];
+
+                // --- UPDATED LOGIC BLOCK ---
+                double angle = 0;
+                double size = 0.9;
+                double translateY = 0; // Reset to 0 to start
+                double translateX = 0; // Optional: used to pull items closer
+                double opac = 0.4;
+                int zIndex = 0;
+
+                if (i < selectedIndex) // Left Side
+                {
+                    angle = -20;
+                    translateY = 30;   // Explicitly lower the left side
+                    translateX = 20;   // Move slightly toward the center
+                    zIndex = i;
+                }
+                else if (i > selectedIndex) // Right Side
+                {
+                    angle = 20;
+                    translateY = 30;   // Match the height of the left side exactly
+                    translateX = -20;  // Move slightly toward the center
+                    zIndex = GamesListView.Items.Count - i;
+                }
+                else // SELECTED (The Focus)
+                {
+                    angle = 0;
+                    size = 1.45;        // Large focus
+                    translateY = -20; // Your high lift
+                    translateX = 0;
+                    opac = 1.0;
+                    zIndex = 1000;
+
+                    // --- DIAGNOSTIC LOGGING ---
+                    var textPanel = UIHelper.FindChild<StackPanel>(container, "TextPanel");
+                    if (textPanel != null)
+                    {
+                        // Get the Name and Playtime from the DataContext
+                        if (container.DataContext is SteamGame game)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[Carousel Selection] Game: {game.Name} | Playtime: {game.Playtime}");
+                        }
+
+                        // Check the current state of the UI element
+                        System.Diagnostics.Debug.WriteLine($"[UI State] Visibility: {textPanel.Visibility}, Opacity: {textPanel.Opacity}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("[Carousel Error] Could not find TextPanel in the Visual Tree.");
+                    }
+
+
+                }
+
+                var duration = TimeSpan.FromMilliseconds(600);
+                var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+
+                // Animate Scale (Bigger)
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(size, duration) { EasingFunction = ease });
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(size, duration) { EasingFunction = ease });
+
+                // Animate Vertical Position (Higher/Lower)
+                trans.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(translateY, duration) { EasingFunction = ease });
+
+                // Animate Tilt
+                skew.BeginAnimation(SkewTransform.AngleYProperty, new DoubleAnimation(angle, duration) { EasingFunction = ease });
+
+                // Animate Opacity
+                border.BeginAnimation(OpacityProperty, new DoubleAnimation(opac, duration) { EasingFunction = ease });
+
+                Panel.SetZIndex(container, zIndex);
+            }
         }
 
         // --- Search Logic ---
@@ -490,12 +637,19 @@ namespace MySteamLibrary
             }
         }
 
-        /// <summary> Ensures the selection remains centered if the window is resized. </summary>
+        /// <summary> 
+        /// Ensures the selection remains centered if the window is resized. 
+        /// </summary>
         private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (CoverModeBtn.IsChecked == true && GamesListView.SelectedItem != null)
+            // Check for both modes here
+            if ((CoverModeBtn.IsChecked == true || CarouselModeBtn.IsChecked == true)
+                && GamesListView.SelectedItem != null)
             {
-                Dispatcher.BeginInvoke(new Action(() => { CenterSelectedItem(); }), System.Windows.Threading.DispatcherPriority.Loaded);
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    CenterSelectedItem();
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
             }
         }
 
@@ -511,7 +665,7 @@ namespace MySteamLibrary
                 var scrollViewer = UIHelper.GetScrollViewer(GamesListView);
                 if (scrollViewer != null)
                 {
-                    if (CoverModeBtn.IsChecked == true) { GamesListView.SelectedIndex = 0; CenterSelectedItem(); }
+                    if (CoverModeBtn.IsChecked == true || CarouselModeBtn.IsChecked == true) { GamesListView.SelectedIndex = 0; CenterSelectedItem(); }
                     else { scrollViewer.ScrollToTop(); scrollViewer.ScrollToHome(); }
                 }
             }));

@@ -124,6 +124,9 @@
                             <DataTrigger Binding="{Binding IsChecked, ElementName=CoverModeBtn}" Value="True">
                                 <Setter Property="Visibility" Value="Visible"/>
                             </DataTrigger>
+                            <DataTrigger Binding="{Binding IsChecked, ElementName=CarouselModeBtn}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
                             <EventTrigger RoutedEvent="Binding.TargetUpdated">
                                 <BeginStoryboard>
                                     <Storyboard>
@@ -179,6 +182,7 @@
                             <RadioButton x:Name="ListModeBtn" Content="LIST" IsChecked="True" GroupName="ViewModes" Style="{StaticResource ViewModeButtonStyle}" Checked="Mode_Changed"/>
                             <RadioButton x:Name="GridModeBtn" Content="GRID" GroupName="ViewModes" Style="{StaticResource ViewModeButtonStyle}" Checked="Mode_Changed"/>
                             <RadioButton x:Name="CoverModeBtn" Content="COVER" GroupName="ViewModes" Style="{StaticResource ViewModeButtonStyle}" Checked="Mode_Changed"/>
+                            <RadioButton x:Name="CarouselModeBtn" Content="CAROUSEL" GroupName="ViewModes" Style="{StaticResource ViewModeButtonStyle}" Checked="Mode_Changed"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                             <Button Click="LoadGames_Click" Style="{StaticResource SteamActionButtonStyle}" Content="REFRESH" Width="100" Margin="0,0,10,0" Background="#2a475e" Foreground="#67c1f5" />
@@ -299,6 +303,20 @@
                                     </Setter.Value>
                                 </Setter>
                             </DataTrigger>
+                            <DataTrigger Binding="{Binding IsChecked, ElementName=CarouselModeBtn}" Value="True">
+                                <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel"/>
+                                <Setter Property="VirtualizingPanel.IsVirtualizing" Value="False"/>
+                                <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Hidden"/>
+                                <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                <Setter Property="ItemsPanel">
+                                    <Setter.Value>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel IsItemsHost="True" Orientation="Horizontal" VerticalAlignment="Center"/>
+                                        </ItemsPanelTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </DataTrigger>
                         </Style.Triggers>
                     </Style>
                 </ListView.Style>
@@ -358,10 +376,17 @@
                 <!-- ITEM TEMPLATE: VISUAL DESIGN OF THE GAME CARD -->
                 <ListView.ItemTemplate>
                     <DataTemplate>
-                        <Border x:Name="BaseBorder" Background="#233c51" CornerRadius="12" Padding="12" Margin="5" BorderThickness="1" BorderBrush="Transparent" CacheMode="BitmapCache">
+                        <Border x:Name="BaseBorder" RenderTransformOrigin="0.5,0.5" Background="#233c51" CornerRadius="12" Padding="12" Margin="5" BorderThickness="1" BorderBrush="Transparent" CacheMode="BitmapCache">
                             <Border.Effect>
                                 <DropShadowEffect BlurRadius="15" ShadowDepth="4" Opacity="0.5" Color="Black"/>
                             </Border.Effect>
+                            <Border.RenderTransform>
+                                <TransformGroup>
+                                    <SkewTransform AngleY="0"/>
+                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                    <TranslateTransform Y="0"/>
+                                </TransformGroup>
+                            </Border.RenderTransform>
                             <StackPanel>
                                 <Grid x:Name="MainGrid">
                                     <Grid.ColumnDefinitions>
@@ -375,6 +400,7 @@
                                                RenderOptions.BitmapScalingMode="HighQuality" 
                                                ImageFailed="Image_ImageFailed" />
                                     </Border>
+                                    
                                     <!-- Text Information (Name and Playtime) -->
                                     <StackPanel x:Name="TextPanel" Grid.Column="1" Margin="15,0,0,0" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="Bold" Foreground="White" TextWrapping="Wrap"/>
@@ -409,6 +435,21 @@
                                 <Setter TargetName="BaseBorder" Property="Margin" Value="40,5,40,5"/>
                                 <Setter TargetName="BaseBorder" Property="Opacity" Value="0.6"/>
                             </DataTrigger>
+                            <!-- Adjustments for Carrousel Mode -->
+                            <DataTrigger Binding="{Binding IsChecked, ElementName=CarouselModeBtn}" Value="True">
+                                <Setter TargetName="TextPanel" Property="Visibility" Value="Collapsed"/>
+                                <Setter TargetName="BaseBorder" Property="Width" Value="200"/>
+                                <Setter TargetName="ImageRoundingBorder" Property="Width" Value="180"/>
+                                <Setter TargetName="ImageRoundingBorder" Property="Height" Value="270"/>
+                                <Setter TargetName="BaseBorder" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <TransformGroup>
+                                            <SkewTransform AngleY="-10"/>
+                                            <ScaleTransform ScaleX="0.9" ScaleY="1.0"/>
+                                        </TransformGroup>
+                                    </Setter.Value>
+                                </Setter>
+                            </DataTrigger>
                             <!-- Details Panel Animation logic -->
                             <MultiDataTrigger>
                                 <MultiDataTrigger.Conditions>
@@ -442,6 +483,37 @@
                                 <Setter TargetName="BaseBorder" Property="Opacity" Value="1.0"/>
                                 <Setter TargetName="BaseBorder" Property="BorderBrush" Value="#67c1f5"/>
                             </MultiDataTrigger>
+                            <!-- Transformation for Carrousel Mode -->
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsChecked, ElementName=CarouselModeBtn}" Value="True"/>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+
+                                <MultiDataTrigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="BaseBorder" Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(SkewTransform.AngleY)" To="0" Duration="0:0:0.4"/>
+                                            <DoubleAnimation Storyboard.TargetName="BaseBorder" Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[1].(ScaleTransform.ScaleX)" To="1.2" Duration="0:0:0.4"/>
+                                            <DoubleAnimation Storyboard.TargetName="BaseBorder" Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[1].(ScaleTransform.ScaleY)" To="1.2" Duration="0:0:0.4"/>
+                                            <DoubleAnimation Storyboard.TargetName="BaseBorder" Storyboard.TargetProperty="Opacity" To="1.0" Duration="0:0:0.4"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </MultiDataTrigger.EnterActions>
+
+                                <MultiDataTrigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="BaseBorder" Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(SkewTransform.AngleY)" To="-15" Duration="0:0:0.4"/>
+                                            <DoubleAnimation Storyboard.TargetName="BaseBorder" Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[1].(ScaleTransform.ScaleX)" To="0.8" Duration="0:0:0.4"/>
+                                            <DoubleAnimation Storyboard.TargetName="BaseBorder" Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[1].(ScaleTransform.ScaleY)" To="0.8" Duration="0:0:0.4"/>
+                                            <DoubleAnimation Storyboard.TargetName="BaseBorder" Storyboard.TargetProperty="Opacity" To="0.5" Duration="0:0:0.4"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </MultiDataTrigger.ExitActions>
+                                <Setter TargetName="BaseBorder" Property="BorderBrush" Value="#67c1f5"/>
+                                <Setter TargetName="BaseBorder" Property="Panel.ZIndex" Value="1000"/>
+                            </MultiDataTrigger>
                         </DataTemplate.Triggers>
                     </DataTemplate>
                 </ListView.ItemTemplate>
@@ -455,6 +527,10 @@
                         <Setter Property="Height" Value="0"/>
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsChecked, ElementName=CoverModeBtn}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Setter Property="Height" Value="200"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsChecked, ElementName=CarouselModeBtn}" Value="True">
                                 <Setter Property="Visibility" Value="Visible"/>
                                 <Setter Property="Height" Value="200"/>
                             </DataTrigger>
