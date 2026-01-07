@@ -152,6 +152,18 @@
                     </Style>
                 </Border.Style>
             </Border>
+            <Border Background="Black">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Opacity" Value="0"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsChecked, ElementName=CarouselModeBtn}" Value="True">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+            </Border>
         </Grid>
 
         <!-- SECTION: MAIN UI CONTENT -->

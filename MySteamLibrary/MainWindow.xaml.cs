@@ -401,6 +401,8 @@ namespace MySteamLibrary
 
             // Return focus to the text box so the user can immediately start a new search.
             SearchTextBox.Focus();
+
+           
         }
 
         /// <summary>
@@ -430,7 +432,7 @@ namespace MySteamLibrary
                 GamesListView.SelectedIndex = -1;
 
                 // Only auto-select and center if we are in Cover Mode (where selection is needed for the 3D effect)
-                if (CoverModeBtn.IsChecked == true && !view.IsEmpty)
+                if ((CoverModeBtn.IsChecked == true || CarouselModeBtn.IsChecked == true) && !view.IsEmpty)
                 {
                     GamesListView.SelectedIndex = 0;
                     CenterSelectedItem();
